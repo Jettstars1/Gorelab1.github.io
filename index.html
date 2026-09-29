@@ -73,7 +73,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
 <body>
 <div id="app">
   <aside id="panel">
-    <h1>Meat Lab</h1>
+    <h1>Meat Lab <span style="font-size:12px;font-weight:600;color:var(--hazard)">v5</span></h1>
     <p class="sub">Pick something, then tap empty space to spawn it. Grab anything to throw it. Long-press for options.</p>
     <div class="cat">Map</div><div class="grid" id="maps"></div>
     <div class="cat">Tools</div><div class="grid" id="tools"></div>
@@ -277,6 +277,7 @@ function spawnHuman(x,y){
   const fa=link(9,11,0.6,[9,11],{muscle:true});fa.len=22;P.muscles.push(fa);
   P.muscles.push(link(1,9,0.5,[2,3,8,9],{muscle:true}),link(1,11,0.5,[2,3,10,11],{muscle:true}));
   P.muscles.forEach(s=>s.k0=s.k);recomputeConn(P);
+  P.brave=Math.random();P.rel=new Map();for(const Q of bodies)if(Q.kind==='person'&&Q!==P&&Q.rel&&Math.random()<0.3){const v=2+((Math.random()*2)|0);P.rel.set(Q.id,v);Q.rel.set(P.id,v)}
   P.legM=[9,11].map(k=>P.muscles.find(s=>s.a===pt[3]&&s.b===pt[k]&&!s.minOnly));P.legRest=P.legM.map(s=>s.len);P.feetM=fa;
   return P;
 }
@@ -294,12 +295,14 @@ function addWound(P,bi,x,y,kind,dmg){
   P.wounds.push({bi,u,v,s:clamp(1.6+dmg/12,1.6,B.r*0.85),bleed:kind==='burn'||kind==='blast'&&Math.random()<.5?0:clamp(dmg/45,0.08,1)*(kind==='bullet'?1.3:1),kind});
   if(P.wounds.length>60)P.wounds.shift();
 }
-function say(P,t){if(!P.alive||P.ko>0||P.sleep>0||P.headGone)return;if(frame-P.talk<50)return;P.talk=frame;bubbles.push({P,t,life:70})}
+function say(P,t){if(!P.alive||P.ko>0||P.sleep>0||P.headGone)return;if(frame-P.talk<50)return;P.talk=frame;sayF(P,t,70)}
+function sayF(P,t,life){if(!P.alive||P.headGone||!P.conscious&&P.ko>0)return;P.talk=frame;for(let i=bubbles.length-1;i>=0;i--)if(bubbles[i].P===P)bubbles.splice(i,1);bubbles.push({P,t,life:life||90,max:life||90})}
 const SCREAMS=['AAAGH!','ARGH!','OW OW OW','NOOO','WHY?!','MY ARM!','HELP!','AAAAA','OH GOD','UGH!'];
 function hurt(P,bi,dmg,kind,x,y,dx,dy){
   const B=P.bones[bi];if(!B||B.gone||dmg<=0||P.deleted)return;
   B.hp-=dmg;
   const eff=P.adren>0?0.35:1;
+  if(P.alive&&dmg>18&&kind!=='burn'&&frame-(P.hurtNote||-999)>150){P.hurtNote=frame;witnesses(P,420,Q=>{if(Math.random()<0.7)queueReact(Q,{type:'hurt',v:P,t:rnd(8,28)})})}
   if(P.alive&&P.conscious&&kind!=='burn'&&dmg>5){P.cover=Math.max(P.cover||0,Math.min(70,20+dmg));if(kind==='bullet'||kind==='blunt'||kind==='blast'||kind==='crush')P.stag=Math.max(P.stag||0,Math.min(110,dmg*1.4));if(B.orig>=8)P.legHurt=Math.max(P.legHurt||0,Math.min(1,dmg/60))}
   P.pain=Math.min(140,P.pain+dmg*(kind==='burn'?0.3:0.55)*eff);
   P.shock+=dmg*(kind==='blunt'?0.3:0.18);
@@ -318,7 +321,7 @@ function hurt(P,bi,dmg,kind,x,y,dx,dy){
   }else if(kind==='blunt'&&B.hp<B.max*0.45&&!B.broken){B.broken=true;sfx('crack')}
   if(dmg>10&&Math.random()<.6)say(P,pick(SCREAMS));
 }
-function kill(P,cause){if(!P.alive)return;P.walking=false;P.alive=false;P.cause=cause;P.muscles.forEach(s=>s.k=0);P.spasm=90;P.mind='idle'}
+function kill(P,cause){if(!P.alive)return;P.walking=false;if(P.chat)endChat(P.chat);witnesses(P,950,(Q,d)=>queueReact(Q,{type:'death',v:P,t:6+d/30+rnd(0,12)}));P.alive=false;P.cause=cause;P.muscles.forEach(s=>s.k=0);P.spasm=90;P.mind='idle'}
 function scare(P,x,t){if(!P.alive||!P.conscious)return;P.fear=Math.max(P.fear,t);P.cover=Math.max(P.cover||0,45);P.face=Math.sign(P.points[1].x-x)||P.face;P.mind='walk';P.mindT=t;if(Math.random()<.4)say(P,pick(['RUN!','WHAT WAS THAT','NOPE','oh no','HELP!']))}
 function clonePt(P,J){const p=addP(P,J.x,J.y,J.r,J.m*0.5);p.px=J.px;p.py=J.py;p.fr=J.fr;p.gcd=frame+30;J.gcd=frame+30;return p}
 function sever(P,bi,x,y){
@@ -352,7 +355,7 @@ function sever(P,bi,x,y){
     P.stumps.push({p:c1,from:a,r:B.r,bleed:1},{p:c2,from:oldB,r:B.r,bleed:1});
     bleedPts=[c1,c2];
   }
-  P.severed.add(B.orig);
+  P.severed.add(B.orig);witnesses(P,480,Q=>{if(Math.random()<0.8)queueReact(Q,{type:'gore',v:P,t:rnd(6,22)})});
   for(const p of bleedPts){spray(p.x,p.y,0,0,30,5);bgSplat(p.x,p.y,0,0,14,Math.PI);for(let i=0;i<3;i++)gib(p.x,p.y,rnd(-3,3),rnd(-5,0),'flesh')}
   if(Math.random()<.5)gib(bleedPts[0].x,bleedPts[0].y,rnd(-2,2),-3,'bone');
   sfx('chop');
@@ -390,7 +393,8 @@ function revive(P){
   if(!broken){healPerson(P);P.alive=true;P.cause='';P.ko=0;P.sleep=0;P.muscles.forEach(s=>{if(!s.dead)s.k=s.k0});say(P,pick(['...what happened?','I saw a light','gasp!']));return P}
   const c=P.points[3];const rx=clamp(c.x,WL+30,WR-30);const N=spawnHuman(rx,Math.min(c.y,floorBelow(rx,c.y-40))-90);
   for(const k of ['skin','shirt','pants','hair','hairStyle','eye','name','face'])N[k]=P[k];
-  removeBody(P);
+  N.rel=P.rel||new Map();for(const Q of bodies)if(Q.rel&&Q.rel.has(P.id))Q.rel.set(N.id,Q.rel.get(P.id));N.brave=P.brave??N.brave;
+  removeBody(P);witnesses(N,500,Q=>queueReact(Q,{type:'revived',v:N,t:rnd(10,30)}));
   for(let i=0;i<20;i++)fx.push({x:N.points[2].x+rnd(-25,25),y:N.points[2].y+rnd(-70,70),vx:0,vy:-rnd(.5,1.5),life:50,max:50,type:'heal',s:rnd(3,7)});
   N.talk=-99;say(N,pick(['I\'m back!','...what happened?','all in one piece']));sfx('whoosh');return N;
 }
@@ -453,13 +457,14 @@ function updatePerson(P,ts){
   P.str=str;P.legsOk=legsOk;
   for(const s of P.muscles){if(s.dead)continue;s.k=s.k0*(legsOk?str:str*0.25)}
   if(conscious&&effPain>35&&Math.random()<0.5*ts){const hs=[5,7,9,11].map(i=>P.points[i]);for(const h of hs)if(h.w>0){h.ax+=rnd(-1,1)*effPain/90;h.ay+=rnd(-1,.5)*effPain/90}}
-  if(conscious&&Math.random()<0.002)say(P,pick(effPain>30?['it hurts...','ow','why me']:['hm','hello?','where am I','...','nice lab']));
+  if(conscious&&!P.chat&&!P.goal&&!P.react&&frame-P.talk>500&&Math.random()<0.0015)say(P,pick(effPain>30?['it hurts...','ow','why me']:['hm','hello?','where am I','...','nice lab']));
 }
 // [parent, joint, child, min, max, rest, bones that must be intact]; angles are signed bends, mirrored by facing
 const JOINTS=[[3,8,9,-0.14,2.5,0.05,[8,9]],[3,10,11,-0.14,2.5,0.05,[10,11]],   // knees only fold forward (a few degrees of lock allowed)
   [1,4,5,-2.6,0.04,-0.35,[4,5]],[1,6,7,-2.6,0.04,-0.35,[6,7]],                  // elbows only fold one way
   [2,3,8,-2.1,0.5,0,[3,8],1],[2,3,10,-2.1,0.5,0,[3,10],1],                      // hips: big forward swing, little backward
-  [1,2,3,-0.55,0.55,0,[2,3],1],[2,1,0,-0.5,0.8,0,[1,2]]];                       // spine and neck (hips/spine are held by muscles while standing)
+  [1,2,3,-0.55,0.55,0,[2,3],1],[2,1,0,-0.5,0.8,0,[1,2]],
+  [2,1,4,-3.0,1.05,-0.1,[2,4],0,1],[2,1,6,-3.0,1.05,-0.1,[2,6],0,1]];            // shoulders: arms go up in front, only a little behind                       // spine and neck (hips/spine are held by muscles while standing)
 function rotAbout(p,c,a){if(p.w===0)return;const s=Math.sin(a),co=Math.cos(a),dx=p.x-c.x,dy=p.y-c.y;const nx=c.x+dx*co-dy*s,ny=c.y+dx*s+dy*co;p.px+=(nx-p.x)*0.85;p.py+=(ny-p.y)*0.85;p.x=nx;p.y=ny}   // moves the old position too, so limits never inject speed
 function personJoints(P){
   if(P.deleted)return;const pt=P.points,F=P.face;
@@ -468,14 +473,14 @@ function personJoints(P){
     const bs=J[6];let ok=true;for(const i of bs){if(P.severed.has(i)||P.bones[i].broken||P.bones[i].gone){ok=false;break}}
     if(!ok||(J[2]===0&&P.headGone)||(J[7]&&!limp)||(P.walking&&P.alive&&(J[1]>=8||J[1]===1)))continue;   // the gait drives the knees while walking
     const a=pt[J[0]],b=pt[J[1]],c=pt[J[2]];
-    const ux=b.x-a.x,uy=b.y-a.y,vx=c.x-b.x,vy=c.y-b.y;if(ux*ux+uy*uy<1e-4||vx*vx+vy*vy<1e-4)continue;
+    const rev=J[8];const ux=rev?a.x-b.x:b.x-a.x,uy=rev?a.y-b.y:b.y-a.y,vx=c.x-b.x,vy=c.y-b.y;if(ux*ux+uy*uy<1e-4||vx*vx+vy*vy<1e-4)continue;
     const th=Math.atan2(ux*vy-uy*vx,ux*vx+uy*vy)*F;
     let dd,k,lim=true;
     if(th<J[3]||th>J[4]){const wrap=v=>{while(v>Math.PI)v-=2*Math.PI;while(v<=-Math.PI)v+=2*Math.PI;return v};const a1=wrap(J[3]-th),a2=wrap(J[4]-th);dd=Math.abs(a1)<Math.abs(a2)?a1:a2;k=0.4}   // back into range the short way round
     else if(tone>0&&!J[7]){dd=J[5]-th;k=tone;lim=false}else continue;
     const d=clamp(dd*k,-0.06,0.06)*F;if(Math.abs(d)<1e-5)continue;
     if(!lim){rotAbout(c,b,d);continue}   // muscle tone only moves the outer limb
-    const wa=a.w*0.5,ws=wa+c.w;if(!ws)continue;rotAbout(c,b,d*c.w/ws);rotAbout(a,b,-d*wa/ws);
+    const wa=rev?0:a.w*0.5,ws=wa+c.w;if(!ws)continue;rotAbout(c,b,d*c.w/ws);rotAbout(a,b,-d*wa/ws);
   }
 }
 function pull(p,tx,ty,k,mx){if(p.w===0||p.hidden)return;p.ax+=clamp((tx-p.x)*k,-mx,mx);p.ay+=clamp((ty-p.y)*k,-mx,mx)}
@@ -549,6 +554,12 @@ function personForces(P){
   else if(P.cover>0&&!P.headGone&&!lying){const h=pt[0];hands.forEach(([i],j)=>pull(pt[i],h.x+F*(7+j*3),h.y+4-j*6,0.09,2))}
   else if(pain>25){let best=null,bb=0.06;for(const w of P.wounds){const B=P.bones[w.bi];if(!B||B.gone||B.orig===0||(B.orig>=4&&B.orig<=7))continue;if(w.bleed>bb){bb=w.bleed;best=w}}
     if(best&&hands[0]){const [wx,wy]=woundPos(P,best);pull(pt[hands[0][0]],wx,wy,0.07,1.6);if(hands[1]&&pain>70)pull(pt[hands[1][0]],wx+rnd(-3,3),wy+rnd(-3,3),0.05,1.2)}}
+  else if(P.helpT>0&&P.help&&!P.help.deleted&&Math.abs(P.help.points[2].x-sh.x)<80){const t=P.help.points[2];hands.forEach(([i],j)=>pull(pt[i],t.x+rnd(-2,2),t.y-4+j*9,0.08,1.8))}
+  else if(P.mournT>0&&!P.headGone){const h=pt[0];hands.forEach(([i],j)=>pull(pt[i],h.x+F*(8+j*2),h.y+3+j*3,0.08,1.8))}
+  else if(P.hug&&!P.hug.o.deleted){const o=P.hug.o.points[1];hands.forEach(([i],j)=>pull(pt[i],o.x-F*(j*6),o.y+8+j*10,0.09,2))}
+  else if(P.shakeT>0&&P.chat){const o=(P.chat.a===P?P.chat.b:P.chat.a).points[1];const h=hands[0];if(h)pull(pt[h[0]],(sh.x+o.x)/2,sh.y+34+Math.sin(frame*0.5)*3,0.1,2);if(hands[1])pull(pt[hands[1][0]],sh.x+F*3,sh.y+47,0.012,0.4)}
+  else if(P.wave>0){const h=hands[0];if(h)pull(pt[h[0]],sh.x+F*14,sh.y-36+Math.sin(frame*0.45)*9,0.1,2.2);if(hands[1])pull(pt[hands[1][0]],sh.x+F*3,sh.y+47,0.012,0.4)}
+  else if(P.gest>0){const h=hands[0];if(h)pull(pt[h[0]],sh.x+F*(22+Math.sin(frame*0.13)*6),sh.y+16+Math.sin(frame*0.21)*9,0.06,1.4);if(hands[1])pull(pt[hands[1][0]],sh.x+F*3,sh.y+47,0.012,0.4)}
   else if(walking){const ph=P.gait*Math.PI*2;hands.forEach(([i],j)=>pull(pt[i],sh.x+F*Math.sin(ph+j*Math.PI)*(P.run?24:14),sh.y+44,0.035,0.9))}
   else if(!lying){hands.forEach(([i],j)=>pull(pt[i],sh.x+F*(3+j*3),sh.y+47,0.012,0.4))}
   if(P.blood<60||pain>90){const tr=(P.blood<60?(60-P.blood)/40:0)+(pain>90?0.3:0);for(const i of [0,5,7])if(!pt[i].hidden){pt[i].ax+=rnd(-1,1)*0.5*tr;pt[i].ay+=rnd(-1,1)*0.5*tr}}
@@ -560,10 +571,97 @@ function personForces(P){
   // ---- curl up in agony ----
   if(lying&&pain>80&&P.legsOk){pull(pt[8],pt[2].x+F*14,pt[2].y+4,0.02,0.5);pull(pt[10],pt[2].x+F*14,pt[2].y+4,0.02,0.5)}
 }
+// ================= social behaviour =================
+const TALK={
+  greet:['Hey, {n}.','Oh — hi, {n}!','{n}? You work here too?','Hi. I\'m {me}.','Hello there.'],
+  greetFriend:['{n}! Good to see you.','There you are, {n}!','{n}, buddy!','Hey you.'],
+  reply:['Hey.','Hi, {n}.','Oh, hello.','Yo.','...hi.','Hey {n}!'],
+  small:[['Do you know why we\'re here?','No idea. They just said "testing".'],['Is that blood on the floor?','I\'m trying not to think about it.'],['I heard the last group never left.','Stop. Please.'],
+    ['Nice shirt.','Thanks, it\'s my only one.'],['Did you sign the waiver?','There was a WAIVER?'],['Something smells like burning.','That\'s just the lab. Probably.'],['I miss my family.','We\'ll get out of here. I promise.'],
+    ['Who keeps dropping crates in here?','The voice in the ceiling.'],['Want to get lunch after this?','If there is an "after this".'],['I think someone is watching us.','Wave. Maybe they\'re nice.'],
+    ['How long have you been here?','I stopped counting.'],['My knee hurts.','Mine too. Everything hurts.'],['Did you hear that?','...I\'m choosing not to.'],['I used to be an accountant.','And now you\'re a test subject. Great career.']],
+  bye:['Anyway. Stay safe.','Talk later.','Good luck, {n}.','Let\'s not die, okay?','See you around.'],
+  deathSee:['{v}!! NO!','OH GOD — {v}!','{v}? {v}?!','They killed {v}!','NOOO!','Is {v}... dead?'],
+  deathFriend:['{v}... wake up. Please.','Not {v}... not like this.','No no no — {v}!','Somebody help! It\'s {v}!'],
+  mourn:['Why is this happening...','I\'m so sorry, {v}.','We have to get out of here.','I can\'t do this anymore.','Rest easy, {v}.'],
+  gore:['Is that an ARM?!','Oh no. Oh no no no.','I\'m gonna be sick.','Don\'t look, don\'t look!','WHAT IS THAT'],
+  hurtSee:['{v}! Are you okay?!','Hang in there, {v}!','{v} is bleeding!','Get down!','{v}!!'],
+  help:['Stay with me, {v}!','Press on it! Press!','You\'re gonna be fine.','Breathe, {v}. Breathe.'],
+  fire:['{v} is ON FIRE!','Stop, drop and roll!','Somebody get water!'],
+  revived:['{v}?! You\'re alive!','How are you standing?!','{v}! I thought you were gone!'],
+  dragged:['Put me DOWN!','Whoa whoa WHOA!','Let go of me!','Where are you taking me?!'],
+};
+const fmt=(t,o)=>t.replace(/\{(\w+)\}/g,(m,k)=>o[k]||'');
+function rel(P,Q){return (P.rel&&P.rel.get(Q.id))||0}
+function addRel(P,Q,v){if(!P.rel)P.rel=new Map();P.rel.set(Q.id,rel(P,Q)+v)}
+function canSocial(P){return P&&!P.deleted&&P.alive&&P.conscious&&!P.swim&&!P.headGone}
+function witnesses(src,R,fn){const x=src.points[2].x,y=src.points[2].y;for(const Q of bodies){if(Q.kind!=='person'||Q===src||!canSocial(Q))continue;const d=Math.hypot(Q.points[1].x-x,Q.points[1].y-y);if(d<R)fn(Q,d)}}
+const RPRI={death:4,revived:3,fire:3,gore:2,hurt:1};
+function queueReact(Q,r){if(Q.react&&RPRI[Q.react.type]>RPRI[r.type])return;Q.react=r}
+function endChat(c){if(!c)return;if(c.a.chat===c)c.a.chat=null;if(c.b.chat===c)c.b.chat=null;c.a.chatCD=rnd(500,1100);c.b.chatCD=rnd(500,1100)}
+function startChat(A,B){if(A.chat||B.chat)return;const c={a:A,b:B,i:0,t:10,lines:buildScript(A,B)};A.chat=B.chat=c;for(const P of [A,B]){P.goal=null;P.mind='idle';P.mindT=rnd(200,400)}}
+function buildScript(A,B){const L=[];const r=rel(A,B);
+  if(r<1)L.push([A,pick(TALK.greet),'shake'],[B,pick(TALK.reply)]);else L.push([A,pick(TALK.greetFriend),'wave'],[B,pick(TALK.reply),'wave']);
+  const pairs=TALK.small.slice();const dead=bodies.some(o=>o.kind==='person'&&!o.alive&&Math.hypot(o.points[2].x-A.points[2].x,o.points[2].y-A.points[2].y)<500);
+  if(dead)pairs.push(['Should we... do something about them?','Don\'t touch anything.'],['That could have been us.','It still might be.']);
+  if(MAPID==='pool')pairs.push(['Fancy a swim?','Not with all that in the water.']);
+  if(MAPID==='lava')pairs.push(['It is SO hot in here.','Just stay away from the edge.'],['Who builds a lab over LAVA?','The same people who built the spikes.']);
+  if(MAPID==='flooded')pairs.push(['My socks are soaked.','Your SOCKS? The whole room is flooded.']);
+  if(A.pain>30)pairs.push(['I\'m hurt pretty bad.','Hang on. Help is coming. Probably.']);
+  const n=1+(Math.random()<0.55?1:0);for(let i=0;i<n;i++){const pr=pairs.splice((Math.random()*pairs.length)|0,1)[0];const [x,y]=Math.random()<0.5?[A,B]:[B,A];L.push([x,pr[0],'gest'],[y,pr[1],'gest'])}
+  L.push([Math.random()<0.5?A:B,pick(TALK.bye),'wave']);return L}
+function updateChat(c,ts){
+  const {a,b}=c;const d=Math.abs(a.points[1].x-b.points[1].x);
+  if(!canSocial(a)||!canSocial(b)||d>230||a.fear>0||b.fear>0||a.react||b.react){endChat(c);return}
+  for(const [P,Q] of [[a,b],[b,a]]){const s=Math.sign(Q.points[1].x-P.points[1].x);if(s&&P.face!==s&&!P.walking)P.face=s}
+  if(d>110&&wander){a.goal={x:b.points[3].x-Math.sign(b.points[3].x-a.points[3].x)*70,t:120}}
+  c.t-=ts;if(c.t>0)return;
+  if(c.i>=c.lines.length){addRel(a,b,1);addRel(b,a,1);if(rel(a,b)>=3&&Math.random()<0.35){a.hug={o:b,t:70};b.hug={o:a,t:70}}endChat(c);return}
+  const [sp,text,act]=c.lines[c.i++];const other=sp===a?b:a;sayF(sp,fmt(text,{n:other.name,me:sp.name}),Math.max(70,50+text.length*2.4));
+  if(act==='shake'){a.shakeT=70;b.shakeT=70}else if(act==='wave')sp.wave=50;else sp.gest=45;
+  c.t=Math.max(55,40+text.length*2.4);
+}
+function arrive(P,g){
+  if(g.chat&&canSocial(g.chat)&&!g.chat.chat&&!P.chat)startChat(P,g.chat);
+  if(g.mourn){P.mournT=420;P.mournV=g.mourn;sayF(P,fmt(pick(TALK.deathFriend),{v:g.mourn.name}),110)}
+  if(g.help&&g.help.alive){P.help=g.help;P.helpT=420;sayF(P,fmt(pick(TALK.help),{v:g.help.name}),100)}
+  if(g.hug&&canSocial(g.hug)){P.hug={o:g.hug,t:80};g.hug.hug={o:P,t:80}}
+}
+function doReact(Q,r){
+  const V=r.v;if(!V||V.deleted&&r.type!=='death')return;if(Q.chat)endChat(Q.chat);
+  const friend=rel(Q,V)>=2,x=V.points[2].x,toward=x-Math.sign(x-Q.points[3].x)*48;
+  if(r.type==='death'){sayF(Q,fmt(pick(friend?TALK.deathFriend:TALK.deathSee),{v:V.name}),110);Q.cover=90;
+    if((friend||Q.brave>0.7)&&wander&&!V.deleted){Q.goal={x:toward,t:420,mourn:V}}else scare(Q,x,220+rnd(0,120))}
+  else if(r.type==='gore'){sayF(Q,pick(TALK.gore),90);Q.cover=70;if(Q.brave<0.45)scare(Q,x,160)}
+  else if(r.type==='hurt'){if(!V.alive)return;sayF(Q,fmt(pick(TALK.hurtSee),{v:V.name}),90);if((friend||Q.brave>0.6)&&wander&&V.conscious===false||friend&&wander)Q.goal={x:toward,t:360,help:V};else Q.cover=40}
+  else if(r.type==='fire'){sayF(Q,fmt(pick(TALK.fire),{v:V.name}),90);scare(Q,x,200)}
+  else if(r.type==='revived'){sayF(Q,fmt(pick(TALK.revived),{v:V.name}),100);if(friend&&wander)Q.goal={x:toward,t:300,hug:V}}
+}
+function socialUpdate(P,ts){
+  if(P.chatCD>0)P.chatCD-=ts;for(const k of ['shakeT','wave','gest','mournT','helpT'])if(P[k]>0)P[k]-=ts;if(P.hug&&(P.hug.t-=ts)<=0)P.hug=null;
+  if(!canSocial(P)){if(P.chat)endChat(P.chat);P.goal=null;P.react=null;return}
+  if(drag&&drag.body===P&&Math.random()<0.02*ts)say(P,pick(TALK.dragged));
+  if(P.react){if((P.react.t-=ts)<=0){const r=P.react;P.react=null;doReact(P,r)}return}
+  if(P.chat){if(P.chat.a===P)updateChat(P.chat,ts);return}
+  if(P.mournT>0&&P.mournV){const s=Math.sign(P.mournV.points[2].x-P.points[1].x);if(s)P.face=s;if(Math.random()<0.004*ts)sayF(P,fmt(pick(TALK.mourn),{v:P.mournV.name}),110)}
+  if(P.helpT>0&&P.help){if(!P.help.alive||P.help.deleted){P.helpT=0}else{const s=Math.sign(P.help.points[2].x-P.points[1].x);if(s)P.face=s;if(Math.random()<0.004*ts)sayF(P,fmt(pick(TALK.help),{v:P.help.name}),90)}}
+  const burning=P.bones.some(b=>b.burn>0&&!b.gone);
+  if(burning&&!P.fireNoted){P.fireNoted=true;witnesses(P,450,Q=>queueReact(Q,{type:'fire',v:P,t:rnd(5,25)}))}else if(!burning)P.fireNoted=false;
+  if(P.goal||P.fear>0||burning||P.mournT>0||P.helpT>0||P.pain>60||(P.chatCD||0)>0)return;
+  if(Math.random()<0.012*ts){let best=null,bd=380;for(const Q of bodies){if(Q===P||Q.kind!=='person'||!canSocial(Q)||Q.chat||Q.goal||Q.fear>0||(Q.chatCD||0)>0)continue;const d=Math.abs(Q.points[1].x-P.points[1].x)+Math.abs(Q.points[1].y-P.points[1].y)*2;if(d<bd){bd=d;best=Q}}
+    if(best){if(bd<110)startChat(P,best);else if(wander){P.goal={x:best.points[3].x-Math.sign(best.points[3].x-P.points[3].x)*75,t:360,chat:best};if(Math.random()<0.5)P.wave=45}}}
+}
 function updateMind(P,ts){
   const pt=P.points;const burning=P.bones.some(b=>b.burn>0&&!b.gone);
   if(P.fear>0)P.fear-=ts;P.run=burning||P.fear>0;
   if(!P.conscious||!P.legsOk||P.swim){P.mind='idle';return}
+  if(P.chat&&!P.goal){P.mind='idle';return}
+  if(P.goal&&!burning&&P.fear<=0){const g=P.goal;g.t-=ts;const dx=g.x-pt[3].x;
+    const here=floorBelow(pt[3].x,pt[3].y),ahead=pt[3].x+Math.sign(dx)*55;
+    if(Math.abs(dx)<22||g.t<=0){P.goal=null;P.mind='idle';P.mindT=rnd(200,400);arrive(P,g)}
+    else if(floorBelow(ahead,pt[3].y)>here+40||fluidAt(ahead,here-6)&&!fluidAt(pt[3].x,here-6)){P.goal=null;P.mind='idle';say(P,'I can\'t get over there!')}
+    else{P.mind='walk';P.face=Math.sign(dx)||P.face}return}
+  if(P.mournT>0||P.helpT>0){P.mind='idle';return}
   if(burning){P.mind='walk'}
   else{P.mindT-=ts;if(P.mindT<=0){if(P.mind==='walk'||!wander){P.mind='idle';P.mindT=rnd(150,420)}else{P.mind='walk';P.mindT=rnd(100,280);if(Math.random()<.5)P.face*=-1}}}
   if(P.mind==='walk'){const x=pt[3].x,ahead=x+P.face*55;const here=floorBelow(x,pt[3].y);
@@ -908,7 +1006,7 @@ function step(){
   DTP=DT;
 }
 function frameUpdate(ts){
-  for(const b of [...bodies]){if(b.deleted)continue;if(b.kind==='person')updatePerson(b,ts);else updateItem(b,ts)}
+  for(const b of [...bodies]){if(b.deleted)continue;if(b.kind==='person'){updatePerson(b,ts);if(!b.deleted)socialUpdate(b,ts)}else updateItem(b,ts)}
   if(FLUIDS.length)fluidItems(ts);
   for(const b of [...bodies])if(b.popMe&&!b.deleted)popBalloon(b);
   if(useHeld&&!useHeld.deleted&&useHeld.gun&&useHeld.spec.auto)useItem(useHeld);
@@ -1545,8 +1643,14 @@ function render(){
   ctx.drawImage(vigc,0,0,W,H);
   for(let i=cutTrail.length-1;i>=0;i--){if((cutTrail[i].life-=1)<=0)cutTrail.splice(i,1)}
   if(cutTrail.length>1){ctx.strokeStyle='rgba(230,240,255,0.7)';ctx.lineWidth=1.5;ctx.beginPath();cutTrail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke()}
-  const fs=14/Math.pow(cam.z,0.75);ctx.font=`600 ${fs}px "Avenir Next Condensed","Chakra Petch",sans-serif`;ctx.textAlign='center';
-  for(const b of bubbles){const h=b.P.points[0];const a=Math.min(1,b.life/20);ctx.fillStyle=`rgba(255,255,255,${a})`;ctx.strokeStyle=`rgba(0,0,0,${a*0.8})`;ctx.lineWidth=fs/4.5;ctx.strokeText(b.t,h.x,h.y-18-fs/2);ctx.fillText(b.t,h.x,h.y-18-fs/2)}
+  const fs=(LOWP?17:15)/Math.pow(cam.z,0.75);ctx.font=`600 ${fs}px "Avenir Next Condensed","Chakra Petch",sans-serif`;ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  for(const b of bubbles){const h=b.P.points[b.P.headGone?1:0];const a=Math.min(1,b.life/15,((b.max||90)-b.life+1)/6);const tw=ctx.measureText(b.t).width,pad=fs*0.45,bw=tw+pad*2,bh=fs*1.5;
+    const cx=h.x,by=h.y-16-bh;ctx.globalAlpha=a;ctx.fillStyle='rgba(250,250,245,0.94)';ctx.strokeStyle='rgba(20,20,20,0.6)';ctx.lineWidth=Math.max(0.6,fs/14);
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(cx-bw/2,by,bw,bh,bh*0.35):ctx.rect(cx-bw/2,by,bw,bh);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-fs*0.35,by+bh-0.5);ctx.lineTo(cx,by+bh+fs*0.55);ctx.lineTo(cx+fs*0.35,by+bh-0.5);ctx.fill();
+    ctx.fillStyle='#1b1b1b';ctx.fillText(b.t,cx,by+bh/2+0.5)}
+  ctx.globalAlpha=1;ctx.textBaseline='alphabetic';
   if(ropeStart){ctx.strokeStyle='rgba(160,122,69,0.7)';ctx.setLineDash([6,5]);ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ropeStart.x,ropeStart.y);ctx.lineTo(mouse.x,mouse.y);ctx.stroke();ctx.setLineDash([])}
   if(drag){ctx.strokeStyle='rgba(232,197,71,0.8)';ctx.lineWidth=1.2/cam.z;ctx.beginPath();ctx.moveTo(drag.x,drag.y);ctx.lineTo(mouse.x,mouse.y);ctx.stroke();ctx.fillStyle='#e8c547';ctx.beginPath();ctx.arc(drag.x,drag.y,3/cam.z+1,0,7);ctx.fill()}
   else if(!LOWP&&(tool==='drag'||tool==='spawn'||tool==='use')){const p=nearestPoint(mouse.x,mouse.y,tool==='spawn'?14:30);if(p){ctx.strokeStyle='rgba(232,197,71,0.6)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(6,Math.min(p.r,14))+3,0,7);ctx.stroke()}}
@@ -1579,7 +1683,7 @@ function loadMap(id){
   clearAll();cam.z=1;cam.x=W/2;cam.y=H/2;syncZoom();buildBG();initScene();syncMaps();
 }
 applyQ();resize();setTool('drag');syncTop();loadMap('lab');if(document.fonts&&document.fonts.ready)document.fonts.ready.then(buildBG);requestAnimationFrame(loop);
-if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{});let reloaded=false;const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded||!had)return;reloaded=true;location.reload()})});
 if(window.ResizeObserver)new ResizeObserver(()=>resize()).observe(cv.parentElement);
 </script>
 </body>
