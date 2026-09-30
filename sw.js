@@ -1,5 +1,5 @@
 // Meat Lab offline cache — bump VERSION whenever you upload a new index.html
-const VERSION='meatlab-v9';
+const VERSION='meatlab-v11';
 const FILES=['./','./index.html','./manifest.webmanifest','./icon-180.png','./icon-192.png','./icon-512.png'];
 // cache:'reload' skips the browser's HTTP cache so a new upload is always picked up
 self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(FILES.map(u=>new Request(u,{cache:'reload'})))));self.skipWaiting()});
