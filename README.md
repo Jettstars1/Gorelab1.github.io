@@ -1,3 +1,5 @@
-# Meat Lab for iPad
+# Meat Lab for iPad and PC
 
-e
+a gore game, very fun, planned to be paid soon on itch.io 
+
+
