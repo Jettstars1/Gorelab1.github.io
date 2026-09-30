@@ -73,7 +73,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
 <body>
 <div id="app">
   <aside id="panel">
-    <h1>Meat Lab <span style="font-size:12px;font-weight:600;color:var(--hazard)">v10</span></h1>
+    <h1>Meat Lab <span style="font-size:12px;font-weight:600;color:var(--hazard)">v9</span></h1>
     <p class="sub">Tap an item, then tap empty space to spawn it. Grab anything to throw it. Guns: hold with one finger, aim with another, push it outward to fire.</p>
     <div class="cat">Map</div><div class="grid" id="maps"></div>
     <div class="cat">Tools</div><div class="grid" id="tools"></div>
@@ -260,7 +260,7 @@ function spawnHuman(x,y){
   let fy=Math.min(y+86,floorBelow(x,y)-1);
   const P=mkBody('person');
   Object.assign(P,{bones:[],wounds:[],stumps:[],muscles:[],alive:true,blood:100,pain:0,shock:0,ko:0,sleep:0,adren:0,acid:0,headHp:170,headGone:false,face:Math.random()<.5?1:-1,
-    skin:pick(SKINS),shirt:pick(SHIRTS),pants:pick(PANTS),hair:pick(HAIRS),hairStyle:pick([0,0,1,1,2]),eye:pick(['#3b2a1a','#4a6e8a','#3d5a2e','#2a1a10']),name:freshName(),severed:new Set(),cause:'',talk:0,mArm:[1,1],mLeg:[1,1],stun:0,dying:0,look:null,lookT:0,beat:Math.random()*6,o2:100,mind:'idle',mindT:rnd(60,300),gait:0,fear:0,run:false,spasm:0});
+    skin:pick(SKINS),shirt:pick(SHIRTS),pants:pick(PANTS),hair:pick(HAIRS),hairStyle:pick([0,0,1,1,2]),eye:pick(['#3b2a1a','#4a6e8a','#3d5a2e','#2a1a10']),name:freshName(),severed:new Set(),cause:'',talk:0,beat:Math.random()*6,o2:100,mind:'idle',mindT:rnd(60,300),gait:0,fear:0,run:false,spasm:0});
   const D=[[0,-163,10.5,4],[0,-143,6,5],[0,-114,8,7],[0,-88,8,7],[2,-117,5,2],[4,-92,4.5,1.5],[-2,-117,5,2],[-4,-92,4.5,1.5],[3,-46,6,4],[4,-5,5,3],[-3,-46,6,4],[-4,-5,5,3]];
   const pt=D.map(d=>addP(P,x+d[0]*P.face,fy+d[1],d[2],d[3]));
   pt[9].fr=pt[11].fr=0.85;
@@ -306,7 +306,6 @@ function hurt(P,bi,dmg,kind,x,y,dx,dy){
   B.hp-=dmg;
   const eff=P.adren>0?0.35:1;
   if(P.alive&&dmg>18&&kind!=='burn'&&frame-(P.hurtNote||-999)>150){P.hurtNote=frame;witnesses(P,420,Q=>{if(Math.random()<0.7)queueReact(Q,{type:'hurt',v:P,t:rnd(8,28)})})}
-  if(P.alive&&kind!=='burn'&&dmg>4){const o=B.orig;if(o===4||o===5)P.mArm[0]=Math.max(0,P.mArm[0]-dmg/28);else if(o===6||o===7)P.mArm[1]=Math.max(0,P.mArm[1]-dmg/28);else if(o===8||o===9)P.mLeg[0]=Math.max(0,P.mLeg[0]-dmg/45);else if(o===10||o===11)P.mLeg[1]=Math.max(0,P.mLeg[1]-dmg/45);if(o<=3||kind==='blast'||kind==='bullet'&&dmg>30)P.stun=Math.min(1,P.stun+dmg/(o===0?45:80))}
   if(P.alive&&P.conscious&&kind!=='burn'&&dmg>5){P.cover=Math.max(P.cover||0,Math.min(70,20+dmg));if(kind==='bullet'||kind==='blunt'||kind==='blast'||kind==='crush')P.stag=Math.max(P.stag||0,Math.min(110,dmg*1.4));if(B.orig>=8)P.legHurt=Math.max(P.legHurt||0,Math.min(1,dmg/60))}
   P.pain=Math.min(140,P.pain+dmg*(kind==='burn'?0.3:0.55)*eff);
   P.shock+=dmg*(kind==='blunt'?0.3:0.18);
@@ -325,8 +324,7 @@ function hurt(P,bi,dmg,kind,x,y,dx,dy){
   }else if(kind==='blunt'&&B.hp<B.max*0.45&&!B.broken){B.broken=true;sfx('crack')}
   if(dmg>10&&Math.random()<.6)say(P,pick(SCREAMS));
 }
-function kill(P,cause){if(!P.alive)return;P.walking=false;P.dying=P.lie>0?0:26;   // standing bodies fold at the knees before going limp
-if(P.chat)endChat(P.chat);witnesses(P,950,(Q,d)=>queueReact(Q,{type:'death',v:P,t:6+d/30+rnd(0,12)}));P.alive=false;P.cause=cause;P.spasm=90;P.mind='idle'}
+function kill(P,cause){if(!P.alive)return;P.walking=false;if(P.chat)endChat(P.chat);witnesses(P,950,(Q,d)=>queueReact(Q,{type:'death',v:P,t:6+d/30+rnd(0,12)}));P.alive=false;P.cause=cause;P.muscles.forEach(s=>s.k=0);P.spasm=90;P.mind='idle'}
 function scare(P,x,t,pool){if(!P.alive||!P.conscious)return;P.fear=Math.max(P.fear,t);P.cover=Math.max(P.cover||0,45);P.face=Math.sign(P.points[1].x-x)||P.face;P.mind='walk';P.mindT=t;if(Math.random()<.4)say(P,fresh(pool||TALK.scared))}
 function clonePt(P,J){const p=addP(P,J.x,J.y,J.r,J.m*0.5);p.px=J.px;p.py=J.py;p.fr=J.fr;p.gcd=frame+30;J.gcd=frame+30;return p}
 function sever(P,bi,x,y){
@@ -439,7 +437,7 @@ function updatePerson(P,ts){
     for(let i=0;i<n*ts+Math.random();i++)blood.push({x:p.x,y:p.y,vx:dx*pressure*rnd(3,8)+rnd(-.6,.6)+(p.x-p.px)/DT,vy:dy*pressure*rnd(3,8)+rnd(-.6,.6)+(p.y-p.py)/DT,r:rnd(1.2,2.6)})}
   P.blood=Math.max(0,P.blood-loss*ts);
   P.pain=Math.max(0,P.pain-0.12*ts);P.shock=Math.max(0,P.shock-0.2*ts);
-  if(P.ko>0)P.ko-=ts;if(P.sleep>0)P.sleep-=ts;if(P.adren>0)P.adren-=ts;if(P.cover>0)P.cover-=ts;if(P.lookT>0)P.lookT-=ts;if(P.alive&&P.conscious)lookAt(P);else P.neckRest=null;if(P.stag>0)P.stag-=ts;if(P.stepT>0&&!P.alive)P.stepT=0;
+  if(P.ko>0)P.ko-=ts;if(P.sleep>0)P.sleep-=ts;if(P.adren>0)P.adren-=ts;if(P.cover>0)P.cover-=ts;if(P.stag>0)P.stag-=ts;if(P.stepT>0&&!P.alive)P.stepT=0;
   {let lh=0;for(const i of [8,9,10,11]){const B=P.bones[i];if(B&&!B.gone)lh=Math.max(lh,1-B.hp/B.max)}P.legHurt=lh}
   if(P.shock>200&&P.alive&&P.ko<=0){P.ko=200;P.shock=90}
   if(P.acid>0){P.acid-=ts;if(Math.random()<.25*ts){const B=pick(P.bones.filter(b=>!b.gone));if(B){B.char=Math.min(1,B.char+0.01);const m=B.cap;const t=Math.random();hurt(P,B.i,0.9,'burn',B.a.x+(B.b.x-B.a.x)*t,B.a.y+(B.b.y-B.a.y)*t,0,0);if(Math.random()<.15)fx.push({x:B.a.x,y:B.a.y,vx:rnd(-.3,.3),vy:-rnd(.3,1),life:50,max:50,type:'acid',s:rnd(3,6)})}}}
@@ -459,11 +457,9 @@ function updatePerson(P,ts){
   fluidPerson(P,ts);updateMind(P,ts);
   const legsOk=![8,9,10,11].some(i=>P.severed.has(i)||P.bones[i].broken)&&P.points[3].conn;
   const effPain=P.adren>0?P.pain*0.25:P.pain;
-  let str=conscious?clamp(1.25-effPain/180,0.4,1)*(P.adren>0?1.25:1)*(1-0.75*P.stun):0;
+  let str=conscious?clamp(1.25-effPain/180,0.4,1)*(P.adren>0?1.25:1):0;
   P.str=str;P.legsOk=legsOk;
-  P.stun=Math.max(0,P.stun-0.011*ts);for(let i=0;i<2;i++){P.mArm[i]=Math.min(1,P.mArm[i]+0.012*ts);P.mLeg[i]=Math.min(1,P.mLeg[i]+0.008*ts)}
-  if(!P.alive&&P.dying>0){P.dying-=ts;const f=Math.max(0,P.dying/26);for(const s of P.muscles){if(s.dead)continue;const leg=P.legM&&P.legM.includes(s);s.k=s.k0*(leg?f*f*f*0.5:f*0.8)}}
-  else{for(const s of P.muscles){if(s.dead)continue;s.k=s.k0*(legsOk?str:str*0.25)}if(P.legM)P.legM.forEach((s,i)=>{if(s&&!s.dead)s.k*=0.25+0.75*P.mLeg[i]})}
+  for(const s of P.muscles){if(s.dead)continue;s.k=s.k0*(legsOk?str:str*0.25)}
   if(conscious&&effPain>35&&Math.random()<0.5*ts){const hs=[5,7,9,11].map(i=>P.points[i]);for(const h of hs)if(h.w>0&&!h.hidden)pull(h,h.x+rnd(-1,1)*effPain/9,h.y+rnd(-1,.5)*effPain/9,0.1,effPain/90)}
   if(conscious&&!P.chat&&!P.goal&&!P.react&&frame-P.talk>500&&Math.random()<0.0015)say(P,fresh(effPain>30?TALK.pain:TALK.idle));
 }
@@ -474,11 +470,6 @@ const JOINTS=[[3,8,9,-0.14,2.5,0.05,[8,9]],[3,10,11,-0.14,2.5,0.05,[10,11]],   /
   [1,2,3,-0.55,0.55,0,[2,3],1],[2,1,0,-0.5,0.8,0,[1,2]],
   [2,1,4,-3.0,1.05,-0.1,[2,4],0,1],[2,1,6,-3.0,1.05,-0.1,[2,6],0,1]];            // shoulders: arms go up in front, only a little behind                       // spine and neck (hips/spine are held by muscles while standing)
 function rotAbout(p,c,a){if(p.w===0)return;const s=Math.sin(a),co=Math.cos(a),dx=p.x-c.x,dy=p.y-c.y;const nx=c.x+dx*co-dy*s,ny=c.y+dx*s+dy*co;p.px+=(nx-p.x)*0.85;p.py+=(ny-p.y)*0.85;p.x=nx;p.y=ny}   // moves the old position too, so limits never inject speed
-function lookAt(P){const pt=P.points;let t=null;
-  if(P.chat)t=(P.chat.a===P?P.chat.b:P.chat.a).points[0];else if(P.mournT>0&&P.mournV)t=P.mournV.points[2];else if(P.helpT>0&&P.help)t=P.help.points[2];else if(P.hug)t=P.hug.o.points[0];else if(P.goal){const g=P.goal.chat||P.goal.mourn||P.goal.help;if(g)t=g.points[0]}
-  if(!t){if(P.lookT>0&&P.look)t=P.look;else if(Math.random()<0.004){P.lookT=rnd(60,160);P.look={x:pt[1].x+P.face*rnd(60,300),y:pt[1].y+rnd(-120,90)}}}
-  if(!t){P.neckRest=null;return}const u=[pt[1].x-pt[2].x,pt[1].y-pt[2].y],v=[t.x-pt[1].x,t.y-pt[1].y];if(v[0]*P.face<-5){P.neckRest=null;return}
-  P.neckRest=clamp(Math.atan2(u[0]*v[1]-u[1]*v[0],u[0]*v[0]+u[1]*v[1])*P.face-Math.PI/2*0+0,-0.45,0.65)}
 function personJoints(P){
   if(P.deleted)return;const pt=P.points,F=P.face;
   const tone=P.alive&&P.conscious?0.05*(P.str||1):0;const limp=!P.alive||!P.conscious||P.lie>0||P.swim;
@@ -490,7 +481,7 @@ function personJoints(P){
     const th=Math.atan2(ux*vy-uy*vx,ux*vx+uy*vy)*F;
     let dd,k,lim=true;
     if(th<J[3]||th>J[4]){const wrap=v=>{while(v>Math.PI)v-=2*Math.PI;while(v<=-Math.PI)v+=2*Math.PI;return v};const a1=wrap(J[3]-th),a2=wrap(J[4]-th);dd=Math.abs(a1)<Math.abs(a2)?a1:a2;k=0.4}   // back into range the short way round
-    else if(tone>0&&!J[7]&&!(J[1]>=8&&P.conscious)){dd=(J[2]===0&&P.neckRest!=null?P.neckRest:J[5])-th;k=tone;lim=false}else continue;   // standing legs are run by the leg muscles, not joint tone
+    else if(tone>0&&!J[7]&&!(J[1]>=8&&P.conscious)){dd=J[5]-th;k=tone;lim=false}else continue;   // standing legs are run by the leg muscles, not joint tone
     const d=clamp(dd*k,-0.06,0.06)*F;if(Math.abs(d)<1e-5)continue;
     const wa=rev||!lim?0.3*a.w:a.w*0.5,ws=wa+c.w;if(!ws)continue;
     const ax0=a.x,ay0=a.y,cx0=c.x,cy0=c.y;rotAbout(c,b,d*c.w/ws);rotAbout(a,b,-d*wa/ws);
@@ -505,10 +496,10 @@ function armOK(P,s){return s===0?!(P.severed.has(4)||P.severed.has(5)):!(P.sever
 function resetLegs(P){if(P.legM)P.legM.forEach((s,i)=>{if(s&&!s.dead)s.len+=clamp(P.legRest[i]-s.len,-0.5,0.5)})}
 function personForces(P){
   if(P.deleted)return;const pt=P.points;
-  if(!P.alive){if(P.dying>0){const f=P.dying/26;pt[1].ay-=G*0.5*f;pt[8].ax+=P.face*0.5*f;pt[10].ax+=P.face*0.5*f}if(P.spasm>0){P.spasm-=DT;const k=P.spasm/90;for(const i of [5,7,9,11,0])if(!pt[i].hidden&&Math.random()<0.2){pt[i].ax+=rnd(-1,1)*2*k;pt[i].ay+=rnd(-1,1)*2*k}}return}
+  if(!P.alive){if(P.spasm>0){P.spasm-=DT;const k=P.spasm/90;for(const i of [5,7,9,11,0])if(!pt[i].hidden&&Math.random()<0.2){pt[i].ax+=rnd(-1,1)*2*k;pt[i].ay+=rnd(-1,1)*2*k}}return}
   if(!P.str){resetLegs(P);return}
   const str=P.str,sh=pt[1];const F=P.face;
-  const hands=[[5,0],[7,1]].filter(([i,sd])=>armOK(P,sd)&&!pt[i].hidden&&P.mArm[sd]>0.35);
+  const hands=[[5,0],[7,1]].filter(([i,sd])=>armOK(P,sd)&&!pt[i].hidden);
   const pain=P.adren>0?P.pain*0.25:P.pain;
   // ---- climbing out of a pool ----
   if(P.climbing){const c=P.climbing;c.t+=DT;const deck=groundY(c.ex+c.dir*20);const k=Math.min(1,c.t/30);resetLegs(P);
@@ -535,9 +526,7 @@ function personForces(P){
     const boost=P.lie>90?Math.min(3.2,1+(P.lie-90)/60):1;if(P.lie>400)P.lie=0;const g=G*str;
     const up=P.stag>60?0.55:1;if(!P.headGone)pt[0].ay-=1.3*g*boost*up;sh.ay-=1.1*g*boost*up;pt[2].ay-=0.5*g*up;fL.ay+=0.7*g;fR.ay+=0.7*g;
     let tx=gl&&gr?(fL.x+fR.x)/2:gl?fL.x:fR.x,damp=0.03;
-    const stagK=P.stag>0?clamp(1-P.stag/80,0.15,1):1;
-    if(!walking&&!P.stepT)tx+=Math.sin(frame*0.011+P.id*1.7)*3.5;   // idle weight shift
-    sh.ay+=Math.sin(frame*0.09+P.id)*0.06*str;   // breathing   // a hard hit knocks the balance out of them for a moment
+    const stagK=P.stag>0?clamp(1-P.stag/80,0.15,1):1;   // a hard hit knocks the balance out of them for a moment
     if(walking){
       if(P.feetM&&!P.feetM.dead)P.feetM.k=0;
       const sp=(P.run?0.032:0.022)*clamp(1-pain/220-P.legHurt*0.45,0.35,1);P.gait+=DT*sp;const ph=P.gait%1,u=(ph%0.5)/0.5,swingL=ph<0.5;
@@ -561,19 +550,14 @@ function personForces(P){
     for(const [i,k] of [[0,0.03],[1,0.03],[2,0.025],[3,0.03]]){const p=pt[i];if(p.w===0)continue;p.ax+=clamp((tx-p.x)*k,-0.4,0.4)*str*stagK;p.px+=(p.x-p.px)*damp*str*stagK}
   }else resetLegs(P);
   // ---- get back up ----
-  if(P.legsOk&&lying&&P.lie>55&&str>0.5&&pain<90&&!(drag&&drag.body===P)){const t=P.lie-55;const pv=pt[3];const gy2=floorBelow(pv.x,pv.y-30);
-    // 1) hands to the floor under the shoulders, push the chest up
-    const k1=Math.min(1,t/30)*str;hands.forEach(([i],j)=>pull(pt[i],sh.x+F*(4+j*6),floorBelow(sh.x,sh.y-40)-4,0.08,1.8,1));
-    sh.ay-=G*1.7*k1;pt[2].ay-=G*0.9*k1;if(!P.headGone)pt[0].ay-=G*1.3*k1;
-    // 2) knees drawn in under the hips
-    if(t>35){const k2=Math.min(1,(t-35)/30)*str;pull(pt[8],pv.x+F*8,gy2-7,0.05,1.4,1);pull(pt[10],pv.x+F*8,gy2-7,0.05,1.4,1);pt[3].ay-=G*1.4*k2;pt[2].ay-=G*0.8*k2}
-    // 3) feet under the body and rise
-    if(t>75){const k3=Math.min(1,(t-75)/35)*str;pull(fL,pv.x+5,gy2-5,0.06,1.6,1);pull(fR,pv.x-5,gy2-5,0.06,1.6,1);if(!P.headGone)pt[0].ay-=G*2.2*k3;sh.ay-=G*2.6*k3;pt[2].ay-=G*1.8*k3;pt[3].ay-=G*0.8*k3}
-    for(const i of [0,1,2])pt[i].ax+=clamp((pv.x-pt[i].x)*0.02,-0.4,0.4)*k1;
-    if(P.lie>380)P.lie=0}
+  if(P.legsOk&&lying&&P.lie>70&&str>0.55&&pain<90&&!(drag&&drag.body===P)){const k=Math.min(1,(P.lie-70)/50)*str;const pv=pt[3];const gy2=floorBelow(pv.x,pv.y-30);
+    pull(fL,pv.x+5,gy2-5,0.06,1.6,1);pull(fR,pv.x-5,gy2-5,0.06,1.6,1);
+    if(!P.headGone)pt[0].ay-=G*3*k;sh.ay-=G*3.4*k;pt[2].ay-=G*2.2*k;pt[3].ay-=G*1.1*k;
+    for(const i of [0,1,2])pt[i].ax+=clamp((pv.x-pt[i].x)*0.02,-0.4,0.4)*k;
+    if(P.lie>330)P.lie=0}
   // ---- arms ----
   const tilt=Math.atan2(sh.x-pt[3].x,pt[3].y-sh.y);const vy=(sh.y-sh.py)/DT;let brace=false;
-  if(!lying&&Math.abs(tilt)>0.75&&vy>1.2){brace=true;P.neckRest=0.6;const d=Math.sign(tilt)||F;hands.forEach(([i])=>pull(pt[i],sh.x+d*28,sh.y+42,0.1,2))}
+  if(!lying&&Math.abs(tilt)>0.75&&vy>1.2){brace=true;const d=Math.sign(tilt)||F;hands.forEach(([i])=>pull(pt[i],sh.x+d*28,sh.y+42,0.1,2))}
   else if(burning||P.o2<30){hands.forEach(([i])=>pull(pt[i],sh.x+rnd(-48,48),sh.y+rnd(-55,25),0.09,2.2))}
   else if(P.cover>0&&!P.headGone&&!lying){const h=pt[0];hands.forEach(([i],j)=>pull(pt[i],h.x+F*(7+j*3),h.y+4-j*6,0.09,2))}
   else if(pain>25){let best=null,bb=0.06;for(const w of P.wounds){const B=P.bones[w.bi];if(!B||B.gone||B.orig===0||(B.orig>=4&&B.orig<=7))continue;if(w.bleed>bb){bb=w.bleed;best=w}}
